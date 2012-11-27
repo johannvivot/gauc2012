@@ -1,0 +1,326 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="pt-br" lang="pt-br">
+    <head>
+        <title>GAUC Brasil 2012 - Google Analytics API Example</title>
+
+        <meta http-equiv="Content-type" content="text/html; charset=utf-8" />
+        <meta http-equiv="Content-Language" content="pt-br" />
+        <meta name="keywords" content="{% trans "gauc, gauc brasil, google analytics user conference, google analytics, johann vivot" %}" />
+        <meta name="description" content="{% trans "Google Analytics User Conference Brasil 2012 - Google Analytics API Example" %}" />
+
+        <link rel="stylesheet" type="text/css" media="screen" href="bootstrap/css/bootstrap.min.css" />
+        <style type="text/css">
+            body {
+                padding-top: 10px;
+                padding-bottom: 10px;
+                background-color: #f5f5f5;
+            }
+        </style>
+
+
+        <script type="text/javascript" src="jquery-1.8.3.min.js"></script>
+        <script type="text/javascript" src="bootstrap/js/bootstrap.min.js"></script>
+        <script src="https://apis.google.com/js/client.js"></script>
+        <script>
+            // Function to return today date in google analytics format.
+            // e.g. yyyy-mm-dd
+            function today() {
+                var today = new Date();
+                var year = today.getFullYear();
+
+                var month = today.getMonth() + 1;
+                if (month < 10) {
+                    month = '0' + month;
+                }
+
+                var day = today.getDate();
+                if (day < 10) {
+                    day = '0' + day;
+                }
+
+                document.getElementById('end_date').value = [year, month, day].join('-');
+            }
+
+            // Function to return last seven days date in google analytics format.
+            // e.g. yyyy-mm-dd
+            function last_seven_days() {
+                var today = new Date();
+                var before = new Date();
+                before.setDate(today.getDate() - 7);
+
+                var year = before.getFullYear();
+
+                var month = before.getMonth() + 1;
+                if (month < 10) {
+                    month = '0' + month;
+                }
+
+                var day = before.getDate();
+                if (day < 10) {
+                    day = '0' + day;
+                }
+
+                document.getElementById('start_date').value = [year, month, day].join('-');
+            }
+
+            /*
+            *
+            * The routines below are used to retrieve google analytics data in this example
+            *
+            */
+
+            // Function to user authorize our app to retrieve the auth token
+            function auth() {
+                var config = {
+                    'client_id': 'YOUR_CLIENT_ID', // Replace YOUR_CLIENT_ID
+                    'scope': 'https://www.googleapis.com/auth/analytics.readonly' // Here its the google analytics scope
+                };
+
+                // Authorization method
+                gapi.auth.authorize(config, function() {
+                    console.log('login complete');
+                    console.log(gapi.auth.getToken());
+
+                    try {
+                        document.getElementById('access_token').value = gapi.auth.getToken().access_token;
+                    } catch (e) {
+                        alert('Error: ' + e);
+                    }
+                });
+            }
+
+            // Function fired when the user clicks in retrieve accounts button
+            // It fires a method that loads the analytics api lib then it calls a function to retrieve the accounts
+            function management_accounts() {
+                gapi.client.load('analytics', 'v3', make_management_api_accounts_call);
+            }
+
+            // Function fired when the user clicks in retrieve web properties button
+            // It fires a method that loads the analytics api lib then it calls a function to retrieve the web properties
+            function management_web_properties() {
+                gapi.client.load('analytics', 'v3', make_management_api_web_properties_call);
+            }
+
+            // Function fired when the user clicks in retrieve profiles button
+            // It fires a method that loads the analytics api lib then it calls a function to retrieve the profiles
+            function management_profiles() {
+                gapi.client.load('analytics', 'v3', make_management_api_profiles_call);
+            }
+
+            // Function fired when the user clicks in retrieve visits button
+            // It fires a method that loads the analytics api lib then it calls a function to retrieve the visits
+            function core_reports_visits() {
+                gapi.client.load('analytics', 'v3', make_core_reports_api_visits_call);
+            }
+
+
+            // Function retrieve users accounts and it calls a handler
+            function make_management_api_accounts_call() {
+                gapi.client.analytics.management.accounts.list().execute(handle_accounts);
+            }
+
+            // Function retrieve users web properties then it calls a handler
+            function make_management_api_web_properties_call() {
+                var params = {
+                    'accountId': document.getElementById('accounts').value
+                };
+                gapi.client.analytics.management.webproperties.list(params).execute(handle_web_properties);
+            }
+
+            // Function retrieve users profiles and it calls a handler
+            function make_management_api_profiles_call() {
+                var params = {
+                    'accountId': document.getElementById('accounts').value,
+                    'webPropertyId': document.getElementById('web_properties').value
+                };
+                gapi.client.analytics.management.profiles.list(params).execute(handle_profiles);
+            }
+
+            // Function retrieve visits from selected profile and it calls a handler
+            function make_core_reports_api_visits_call() {
+                var params = {
+                    'ids': 'ga:' + document.getElementById('profiles').value,
+                    'start-date': document.getElementById('start_date').value,
+                    'end-date': document.getElementById('end_date').value,
+                    'metrics': 'ga:visits',
+                    'dimensions': 'ga:source',
+                    'sort': '-ga:visits,ga:source',
+                    'max-results': 10000
+                };
+                gapi.client.analytics.data.ga.get(params).execute(handle_core_reports);
+            }
+
+            // Handler to accounts
+            function handle_accounts(response) {
+                if (!response.code) {
+                    if (response && response.items && response.items.length) {
+                        var output = [];
+                        for (var i = 0; i < response.items.length; i++) {
+                            output.push('<option value="' + response.items[i].id + '">' + response.items[i].name + '</option>');
+                            document.getElementById('accounts').innerHTML = output.join('');
+                        }
+                    } else {
+                        alert('No accounts found for this user.');
+                    }
+                } else {
+                    alert('There was an error querying accounts: ' + response.message);
+                }
+            }
+
+            // Handler to web properties
+            function handle_web_properties(response) {
+                if (!response.code) {
+                    if (response && response.items && response.items.length) {
+                        var output = [];
+                        for (var i = 0; i < response.items.length; i++) {
+                            output.push('<option value="' + response.items[i].id + '">' + response.items[i].name + '</option>');
+                            document.getElementById('web_properties').innerHTML = output.join('');
+                        }
+                    } else {
+                        alert('No webproperties found for this user.');
+                    }
+                } else {
+                    alert('There was an error querying webproperties: ' + response.message);
+                }
+            }
+
+            // Handler to profiles
+            function handle_profiles(response) {
+                if (!response.code) {
+                    if (response && response.items && response.items.length) {
+                        var output = [];
+                        for (var i = 0; i < response.items.length; i++) {
+                            output.push('<option value="' + response.items[i].id + '">' + response.items[i].name + '</option>');
+                            document.getElementById('profiles').innerHTML = output.join('');
+                        }
+                    } else {
+                        alert('No profiles found for this user.');
+                    }
+                } else {
+                    alert('There was an error querying profiles: ' + response.message);
+                }
+            }
+
+            // Handler to report
+            function handle_core_reports(response) {
+                if (!response.code) {
+                    if (response.rows && response.rows.length) {
+                        var output = [];
+
+                        // Profile Name.
+                        output.push('<h4>Perfil: ', response.profileInfo.profileName, '</h4>');
+
+                        var table = ['<table class="table table-striped">'];
+
+                        // Put headers in table.
+                        table.push('<thead><tr>');
+                        for (var i = 0, header; header = response.columnHeaders[i]; ++i) {
+                            table.push('<th>', header.name, '</th>');
+                        }
+                        table.push('</tr></thead>');
+
+                        // Put cells in table.
+                        for (var i = 0, row; row = response.rows[i]; ++i) {
+                            table.push('<tr><td>', row.join('</td><td>'), '</td></tr>');
+                        }
+                        table.push('</table>');
+
+                        output.push(table.join(''));
+                        document.getElementById('results').innerHTML = output.join('');
+                    } else {
+                        alert('No results found.');
+                    }
+                } else {
+                    alert('There was an error querying core reporting API: ' + response.message);
+                }
+            }
+
+            window.onload = function() {
+                today();
+                last_seven_days();
+            }
+        </script>
+    </head>
+
+    <body>
+        <div class="container">
+
+            <h2>Google Analytics API Example</h2>
+
+            <div class="control-group">
+                <div class="controls">
+                    <button class="btn btn-primary" onclick="auth();">Autorizar</button>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label class="control-label" for="access_token">Token:</label>
+                <div class="controls">
+                    <input id="access_token" name="access_token" type="text" class="input-block-level" />
+                </div>
+            </div>
+
+            <div class="control-group">
+                <div class="controls">
+                    <button class="btn" onclick="management_accounts();">Buscar Contas</button>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label class="control-label" for="accounts">Contas:</label>
+                <div class="controls">
+                    <select id="accounts" name="accounts" class="input-block-level"></select>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <div class="controls">
+                    <button class="btn" onclick="management_web_properties();">Buscar Web Properties</button>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label class="control-label" for="web_properties">Web Properties:</label>
+                <div class="controls">
+                    <select id="web_properties" name="web_properties" class="input-block-level"></select>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <div class="controls">
+                    <button class="btn" onclick="management_profiles();">Buscar Perfis</button>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label class="control-label" for="profiles">Perfis:</label>
+                <div class="controls">
+                    <select id="profiles" name="profiles" class="input-block-level"></select>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label class="control-label" for="start_date">Data Início:</label>
+                <div class="controls">
+                    <input id="start_date" name="start_date" type="text" class="input-block-level" />
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label class="control-label" for="end_date">Data Final:</label>
+                <div class="controls">
+                    <input id="end_date" name="end_date" type="text" class="input-block-level" />
+                </div>
+            </div>
+
+            <div class="control-group">
+                <div class="controls">
+                    <button class="btn btn-success" onclick="core_reports_visits();">Buscar Visitas</button>
+                </div>
+            </div>
+            <div id="results"></div>
+
+        </div> <!-- /container -->
+    </body>
+</html>
