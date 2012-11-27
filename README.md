@@ -11,6 +11,7 @@ O arquivo *index.html* está com suas funções comentadas. Veja o exemplo funci
 O exemplo utiliza a lib em javascript de APIs Google:
 
 [http://code.google.com/p/google-api-javascript-client/][2]
+
 [http://code.google.com/p/google-api-javascript-client/wiki/Samples#Google_Analytics_API][3]
 
 
